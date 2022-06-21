@@ -21,10 +21,10 @@ version = "3.1.9"
 features = ["derive"]
 
 [dependencies.glider-macros]
-version = "0.1.0"
-# git = "https://github.com/chaaz/alchem-macros"
-# branch = "main"
-path = "../../../glider-macros"
+version = "0.1.1"
+git = "https://github.com/chaaz/glider-macros"
+branch = "main"
+# path = "../../../glider-macros"
 
 [dependencies.tokio]
 version = "1.17.0"
