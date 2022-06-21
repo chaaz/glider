@@ -1,0 +1,34 @@
+options:
+  prev_tag: "versio-prev"
+
+projects:
+  - name: "glider"
+    root: app/glider
+    id: 1
+    tag_prefix: "glider"
+    labels: cargo
+    changelog: "CHANGELOG.html"
+    version:
+      file: "Cargo.toml"
+      toml: "package.version"
+    hooks:
+      post_write: 'cargo update --workspace'
+
+  - name: "book"
+    root: book
+    id: 2
+    depends:
+      1:
+        size: patch
+        files:
+          - file: "00_title.md"
+            pattern: 'Glider version (\d+\.\d+\.\d+)'
+    tag_prefix: "book"
+    labels: markdown
+    version:
+      file: "00_title.md"
+      pattern: 'Glider Book v(\d+\.\d+\.\d+)'
+
+sizes:
+  use_angular: true
+  fail: ["*"]
