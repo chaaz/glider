@@ -240,6 +240,7 @@ dependencies = [
 [[package]]
 name = "glider-macros"
 version = "0.1.1"
+source = "git+https://github.com/chaaz/glider-macros?branch=main#57194e2f72e93c7a9a9d72cb80d4709e23d5e029"
 dependencies = [
  "proc-macro2",
  "quote",

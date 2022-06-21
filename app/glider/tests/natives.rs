@@ -1,4 +1,4 @@
-//! A set of native function tests for the alchemy vm.
+//! A set of native function tests for the glider vm.
 //!
 //! The tests in this suite use some native functions, defined in `util`:
 //! - `fourty_two()`: returns the number 42.
@@ -24,13 +24,13 @@ async fn extract_obj() {
 }
 
 #[tokio::test]
-async fn native_to_alc() {
+async fn native_to_gli() {
   setup();
   expect_i64("f=fn() { 1 }; recall(f) + 2", 3).await;
 }
 
 #[tokio::test]
-async fn alc_to_native() {
+async fn gli_to_native() {
   setup();
   expect_i64("f=fn() { fourty_two() }; f() + 1", 43).await;
 }

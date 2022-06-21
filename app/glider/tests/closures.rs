@@ -1,4 +1,4 @@
-//! A set of closure tests for the alchemy vm.
+//! A set of closure tests for the glider vm.
 
 mod util;
 
