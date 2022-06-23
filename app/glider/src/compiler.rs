@@ -64,6 +64,7 @@ use crate::callable::{Callable, CallableDef, FnDef, ImplStatus, NativeBuildFn, N
 use crate::custom::Custom;
 use crate::enhancer::Capture;
 use crate::enhancer::Captured;
+use crate::errors::Context;
 use crate::parser::{Assignment, BinaryOp, Block, Destructure, DotIndex, Expression, ExpressionMeta, Scope, Script,
                     UnaryOp};
 use crate::scanner::Position;
@@ -541,7 +542,7 @@ impl<'p, C: Custom> Compiler<'p, C> {
       .undeclared()
       .iter()
       .map(|u| {
-        let (ind, tp) = self.resolve_local(u).unwrap();
+        let (ind, tp) = self.resolve_local(u).with_context(|| format!("unable to resolve {}", u)).unwrap();
         (ind, (u.clone(), tp))
       })
       .unzip();

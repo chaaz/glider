@@ -62,6 +62,7 @@ impl<C: Custom> PartialEq for Type<C> {
       (Self::Object(a), Self::Object(b)) => a == b,
       (Self::Array(a), Self::Array(b)) => a == b,
       (Self::FnDef(a), Self::FnDef(b)) => a == b,
+      (Self::Native(a), Self::Native(b)) => a == b,
       (Self::Iter(a), Self::Iter(b)) => a == b,
       (Self::Unknown, Self::Unknown) => true,
       (Self::Custom(a), Self::Custom(b)) => a == b,

@@ -1,6 +1,6 @@
 //! Error handling is based on the `anyhow` crate.
 
-pub use anyhow::Result;
+pub use anyhow::{Context, Result};
 use std::fmt;
 
 pub enum Error {
