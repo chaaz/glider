@@ -28,6 +28,33 @@ pub enum Value<C: Custom> {
   Void
 }
 
+impl<C: Custom> fmt::Display for Value<C> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Unit => write!(f, "()"),
+      Self::Float(v) => write!(f, "{}", v),
+      Self::Int(v) => write!(f, "{}", v),
+      Self::Bool(v) => write!(f, "{}", v),
+      Self::String(v) => write!(f, "{}", v),
+      Self::Array(v) => {
+        write!(f, "[")?;
+        for (i, v) in v.iter().enumerate() {
+          if i != 0 {
+            write!(f, ", ")?;
+          }
+          v.fmt(f)?;
+        }
+        write!(f, "]")
+      }
+      Self::Json(v) => write!(f, "{}", v),
+      Self::FnDef(_, _) => write!(f, "<function>"),
+      Self::NativeDef(..) => write!(f, "<native>"),
+      Self::Custom(_) => write!(f, "_custom value_"),
+      Self::Void => write!(f, "-")
+    }
+  }
+}
+
 impl<C: Custom> fmt::Debug for Value<C> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {

@@ -581,6 +581,11 @@ impl<C: Custom> BuildData<C> {
     self.push_fn_ind(ind);
     self
   }
+
+  pub fn with_obj_map(mut self, om: ObjMap) -> Self {
+    self.push_obj_map(om);
+    self
+  }
 }
 
 /// Runtime information that is additionally passed to native functions.
