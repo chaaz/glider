@@ -97,6 +97,7 @@ impl<C: Custom> Hash for Type<C> {
 }
 
 impl<C: Custom> Type<C> {
+  pub fn is_unit(&self) -> bool { matches!(self, Type::Unit) }
   pub fn is_object(&self) -> bool { matches!(self, Type::Object(_)) }
   pub fn is_array(&self) -> bool { matches!(self, Type::Array(_)) }
   pub fn is_json(&self) -> bool { matches!(self, Self::Json) }
@@ -105,6 +106,8 @@ impl<C: Custom> Type<C> {
   pub fn is_number(&self) -> bool { matches!(self, Self::Number(_)) }
   pub fn is_bool(&self) -> bool { matches!(self, Self::Bool(_)) }
   pub fn is_fn(&self) -> bool { matches!(self, Self::FnDef(_)) }
+  pub fn is_native(&self) -> bool { matches!(self, Self::Native(_)) }
+  pub fn is_a_fn(&self) -> bool { matches!(self, Self::FnDef(_) | Self::Native(_)) }
   pub fn is_unknown(&self) -> bool { matches!(self, Type::Unknown) }
   pub fn is_iter(&self) -> bool { matches!(self, Type::Iter(_)) }
 

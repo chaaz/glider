@@ -1,7 +1,7 @@
 //! The values representable in our language.
 
 use crate::callable::{FnDefInner, NativeDefInner};
-use crate::custom::{Custom, CustomValue};
+use crate::custom::{Custom, CustomValue, CustomRepeatValue};
 use crate::errors::Result;
 use crate::pick;
 use serde_json::{Number, Value as Json};
@@ -108,6 +108,7 @@ impl<C: Custom> Value<C> {
   pub fn is_array(&self) -> bool { matches!(self, Self::Array(_)) }
   pub fn is_fn(&self) -> bool { matches!(self, Self::FnDef(..)) }
   pub fn is_native(&self) -> bool { matches!(self, Self::NativeDef(..)) }
+  pub fn is_a_fn(&self) -> bool { matches!(self, Self::FnDef(..) | Self::NativeDef(..)) }
   pub fn is_callable(&self) -> bool { matches!(self, Self::FnDef(..) | Self::NativeDef(..)) }
   pub fn is_custom(&self) -> bool { matches!(self, Self::Custom(_)) }
 
@@ -146,6 +147,22 @@ impl<C: Custom> Value<C> {
   pub fn into_string(self) -> String { pick!(self, Self::String(v) => v.to_string(), "Not a string: {:?}") }
   pub fn into_array(self) -> Vec<Value<C>> { pick!(self, Self::Array(v) => v, "Not an array: {:?}") }
   pub fn into_custom(self) -> C::Value { pick!(self, Self::Custom(v) => v, "Not a custom value: {:?}") }
+
+  pub fn repeatable(self) -> RepeatValue<C> {
+    match self {
+      Self::Unit => RepeatValue::Unit,
+      Self::Float(v) => RepeatValue::Float(v),
+      Self::Int(v) => RepeatValue::Int(v),
+      Self::Bool(v) => RepeatValue::Bool(v),
+      Self::String(v) => RepeatValue::String(v),
+      Self::Array(v) => RepeatValue::Array(v.into_iter().map(|v| v.repeatable()).collect()),
+      Self::Json(v) => RepeatValue::Json(v),
+      Self::FnDef(v, c) => RepeatValue::FnDef(v, c.into_iter().map(|v| v.repeatable()).collect()),
+      Self::NativeDef(v, c, p) => RepeatValue::NativeDef(v, c.into_iter().map(|v| v.repeatable()).collect(), p),
+      Self::Custom(c) => RepeatValue::Custom(c.repeatable()),
+      Self::Void => RepeatValue::Void,
+    }
+  }
 
   /// Act like `clone` for most value types; but for streaming or otherwise un-cloneable values, take the value
   /// instead, leaving a `Void` in its place.
@@ -428,6 +445,138 @@ impl<C: Custom> Value<C> {
       (Value::Json(Json::Bool(v1)), Self::Bool(v2)) => Self::Bool(*v1 || *v2),
       (Value::Json(Json::Bool(v1)), Self::Json(Json::Bool(v2))) => Self::Bool(*v1 || *v2),
       (o1, o2) => panic!("Can't compare types: {:?}, {:?}", o1, o2)
+    }
+  }
+}
+
+#[derive(Clone)]
+pub enum RepeatValue<C: Custom> {
+  /// A unit placeholder, returned by empty blocks.
+  Unit,
+
+  Float(f64),
+  Int(i64),
+  Bool(bool),
+  String(Arc<str>),
+  Array(Vec<RepeatValue<C>>),
+  Json(Json),
+  FnDef(Arc<Mutex<FnDefInner<C>>>, Vec<RepeatValue<C>>),
+  NativeDef(Arc<Mutex<NativeDefInner<C>>>, Vec<RepeatValue<C>>, C::Capture),
+  Custom(C::RepeatValue),
+
+  /// An evacuated value, or part of a constexpr array whose value is unknown.
+  Void
+}
+
+impl<C: Custom> fmt::Display for RepeatValue<C> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Unit => write!(f, "()"),
+      Self::Float(v) => write!(f, "{}", v),
+      Self::Int(v) => write!(f, "{}", v),
+      Self::Bool(v) => write!(f, "{}", v),
+      Self::String(v) => write!(f, "{}", v),
+      Self::Array(v) => {
+        write!(f, "[")?;
+        for (i, v) in v.iter().enumerate() {
+          if i != 0 {
+            write!(f, ", ")?;
+          }
+          v.fmt(f)?;
+        }
+        write!(f, "]")
+      }
+      Self::Json(v) => write!(f, "{}", v),
+      Self::FnDef(_, _) => write!(f, "<function>"),
+      Self::NativeDef(..) => write!(f, "<native>"),
+      Self::Custom(_) => write!(f, "<custom repeatable value>"),
+      Self::Void => write!(f, "-")
+    }
+  }
+}
+
+impl<C: Custom> fmt::Debug for RepeatValue<C> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Unit => write!(f, "()"),
+      Self::Float(v) => write!(f, "{}", v),
+      Self::Int(v) => write!(f, "{}", v),
+      Self::Bool(v) => write!(f, "{}", v),
+      Self::String(v) => write!(f, "\"{}\"", v),
+      Self::Array(v) => write!(f, "{:?}", v),
+      Self::Json(v) => write!(f, "{}", v),
+      Self::FnDef(v, _) => v.try_lock().unwrap().fmt(f),
+      Self::NativeDef(v, ..) => v.try_lock().unwrap().fmt(f),
+      Self::Custom(_) => write!(f, "<custom repeatable value>"),
+      Self::Void => write!(f, "-")
+    }
+  }
+}
+
+impl<C: Custom> RepeatValue<C> {
+  pub fn is_unit(&self) -> bool { matches!(self, Self::Unit) }
+  pub fn is_bool(&self) -> bool { matches!(self, Self::Bool(_)) }
+  pub fn is_int(&self) -> bool { matches!(self, Self::Int(_)) }
+  pub fn is_float(&self) -> bool { matches!(self, Self::Float(_)) }
+  pub fn is_number(&self) -> bool { matches!(self, Self::Float(_)) }
+  pub fn is_json(&self) -> bool { matches!(self, Self::Json(_)) }
+  pub fn is_string(&self) -> bool { matches!(self, Self::String(_)) }
+  pub fn is_array(&self) -> bool { matches!(self, Self::Array(_)) }
+  pub fn is_fn(&self) -> bool { matches!(self, Self::FnDef(..)) }
+  pub fn is_native(&self) -> bool { matches!(self, Self::NativeDef(..)) }
+  pub fn is_a_fn(&self) -> bool { matches!(self, Self::FnDef(..) | Self::NativeDef(..)) }
+  pub fn is_callable(&self) -> bool { matches!(self, Self::FnDef(..) | Self::NativeDef(..)) }
+  pub fn is_custom(&self) -> bool { matches!(self, Self::Custom(_)) }
+
+  pub fn as_bool(&self) -> bool { pick!(self, Self::Bool(v) => *v, "Not a boolean: {:?}") }
+  pub fn as_int(&self) -> i64 { pick!(self, Self::Int(v) => *v, "Not an int: {:?}") }
+  pub fn as_float(&self) -> f64 { pick!(self, Self::Float(v) => *v, "Not a float: {:?}") }
+  pub fn as_str(&self) -> &str { pick!(self, Self::String(v) => v, "Not a string: {:?}") }
+  pub fn as_array(&self) -> &[RepeatValue<C>] { pick!(self, Self::Array(v) => v, "Not an array: {:?}") }
+  pub fn as_array_mut(&mut self) -> &mut Vec<RepeatValue<C>> { pick!(self, Self::Array(v) => v, "Not an array: {:?}") }
+  pub fn as_json(&self) -> &Json { pick!(self, Self::Json(v) => v, "Not JSON: {:?}") }
+  pub fn as_json_mut(&mut self) -> &mut Json { pick!(self, Self::Json(v) => v, "Not json: {:?}") }
+  pub fn as_custom(&self) -> &C::RepeatValue { pick!(self, Self::Custom(v) => v, "Not a custom value: {:?}") }
+
+  pub fn as_fn(&self) -> (Arc<Mutex<FnDefInner<C>>>, &[RepeatValue<C>]) {
+    pick!(self, Self::FnDef(v, c) => (v.clone(), c), "Not a function: {:?}")
+  }
+
+  pub fn as_fn_mut(&mut self) -> (Arc<Mutex<FnDefInner<C>>>, &mut Vec<RepeatValue<C>>) {
+    pick!(self, Self::FnDef(v, c) => (v.clone(), c), "Not a function: {:?}")
+  }
+
+  pub fn into_fn(self) -> (Arc<Mutex<FnDefInner<C>>>, Vec<RepeatValue<C>>) {
+    pick!(self, Self::FnDef(v, c) => (v, c), "Not a function: {:?}")
+  }
+
+  pub fn as_native(&self) -> Arc<Mutex<NativeDefInner<C>>> {
+    pick!(self, Self::NativeDef(v, ..) => v.clone(), "Not native: {:?}")
+  }
+
+  #[allow(clippy::type_complexity)]
+  pub fn as_native_mut(&mut self) -> (Arc<Mutex<NativeDefInner<C>>>, &mut Vec<RepeatValue<C>>, &mut C::Capture) {
+    pick!(self, Self::NativeDef(v, a, c) => (v.clone(), a, c), "Not native: {:?}")
+  }
+
+  pub fn into_json(self) -> Json { pick!(self, Self::Json(v) => v, "Not JSON: {:?}") }
+  pub fn into_string(self) -> String { pick!(self, Self::String(v) => v.to_string(), "Not a string: {:?}") }
+  pub fn into_array(self) -> Vec<RepeatValue<C>> { pick!(self, Self::Array(v) => v, "Not an array: {:?}") }
+  pub fn into_custom(self) -> C::RepeatValue { pick!(self, Self::Custom(v) => v, "Not a custom value: {:?}") }
+
+  pub fn into_value(self) -> Value<C> {
+    match self {
+      Self::Unit => Value::Unit,
+      Self::Float(v) => Value::Float(v),
+      Self::Int(v) => Value::Int(v),
+      Self::Bool(v) => Value::Bool(v),
+      Self::String(v) => Value::String(v),
+      Self::Array(v) => Value::Array(v.into_iter().map(|v| v.into_value()).collect()),
+      Self::Json(v) => Value::Json(v),
+      Self::FnDef(v, c) => Value::FnDef(v, c.into_iter().map(|v| v.into_value()).collect()),
+      Self::NativeDef(v, c, p) => Value::NativeDef(v, c.into_iter().map(|v| v.into_value()).collect(), p),
+      Self::Custom(c) => Value::Custom(c.into_value()),
+      Self::Void => Value::Void,
     }
   }
 }

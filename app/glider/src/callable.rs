@@ -586,6 +586,11 @@ impl<C: Custom> BuildData<C> {
     self.push_obj_map(om);
     self
   }
+
+  pub fn with_native_gen(mut self, gen: Arc<Mutex<NativeDefInner<C>>>) -> Self {
+    self.push_native_gen(gen);
+    self
+  }
 }
 
 /// Runtime information that is additionally passed to native functions.
