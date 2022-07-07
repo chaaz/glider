@@ -588,7 +588,9 @@ impl<'p, C: Custom> Compiler<'p, C> {
     ctype
   }
 
-  async fn pass_1<T: Callable<C>>(&mut self, fn_def: &mut CallableDef<T, C>, args: &[Type<C>]) -> Type<C> {
+  async fn pass_1<T: Callable<C>>(&mut self, fn_def: &mut CallableDef<T, C>, args: &[Type<C>]) -> Type<C> 
+  where CallableDef<T, C>: fmt::Debug
+  {
     self.pass.incr_sub_pass();
     pass_1(fn_def, args, self.pass.sub_pass()).await
   }
@@ -970,8 +972,6 @@ impl<C: Custom> Pass<C> {
       self.pass_type
     );
 
-    assert!(self.passes.len() > pass_index || (self.passes.len() == pass_index && self.is_one()));
-
     if self.passes.len() == pass_index {
       self.passes.push(Pass::one());
     }
@@ -998,7 +998,7 @@ pub fn add_natives<C: Custom>(
   let (cap_types, vals): (Vec<_>, Vec<_>) = natives
     .iter()
     .map(|(bfn, rfn, name)| {
-      let def = NativeDef::new(*bfn, *rfn);
+      let def = NativeDef::new(name, *bfn, *rfn);
       ((name.to_string(), Type::Native(def.clone())), Value::NativeDef(def.inner(), Vec::new(), Default::default()))
     })
     .unzip();
@@ -1049,8 +1049,6 @@ async fn pass_1<C: Custom, T: Callable<C>>(
   // That way, `ImplStatus` wouldn't have to be `Clone`, which better reflects how it should be used (the
   // status should only exist with the impl).
   let (pending, (_, status)) = fn_def.find_status(args);
-
-  pass.incr_sub_pass();
 
   if pending {
     // footnote: (2)

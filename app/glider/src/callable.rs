@@ -442,13 +442,14 @@ pub type NativeRunFn<C> =
 
 #[derive(Clone)]
 pub struct NativeFn<C: Custom> {
+  name: String,
   build_fn: NativeBuildFn<C>,
   run_fn: NativeRunFn<C>,
   captures: Vec<(String, Type<C>)>
 }
 
 impl<C: Custom> fmt::Debug for NativeFn<C> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "<native>") }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "<native {}>", self.name) }
 }
 
 #[async_trait]
@@ -481,10 +482,11 @@ impl<C: Custom> Callable<C> for NativeFn<C> {
 }
 
 impl<C: Custom> NativeFn<C> {
-  pub fn new(build_fn: NativeBuildFn<C>, run_fn: NativeRunFn<C>) -> NativeFn<C> {
-    NativeFn { build_fn, run_fn, captures: Vec::new() }
+  pub fn new(name: &str, build_fn: NativeBuildFn<C>, run_fn: NativeRunFn<C>) -> NativeFn<C> {
+    NativeFn { name: name.into(), build_fn, run_fn, captures: Vec::new() }
   }
 
+  pub fn name(&self) -> &str { &self.name }
   pub fn build_fn(&self) -> &NativeBuildFn<C> { &self.build_fn }
   pub fn run_fn(&self) -> &NativeRunFn<C> { &self.run_fn }
   pub fn captures(&self) -> &[(String, Type<C>)] { &self.captures }
@@ -492,6 +494,7 @@ impl<C: Custom> NativeFn<C> {
 }
 
 pub struct NativeRunData<C: Custom> {
+  name: String,
   run_fn: NativeRunFn<C>
 }
 
@@ -505,8 +508,9 @@ impl<C: Custom> PartialEq for NativeRunData<C> {
 impl<C: Custom> Eq for NativeRunData<C> {}
 
 impl<C: Custom> NativeRunData<C> {
-  pub fn new(run_fn: NativeRunFn<C>) -> NativeRunData<C> { NativeRunData { run_fn } }
+  pub fn new(name: &str, run_fn: NativeRunFn<C>) -> NativeRunData<C> { NativeRunData { name: name.into(), run_fn } }
 
+  pub fn name(&self) -> &str { &self.name }
   pub fn run_fn(&self) -> &NativeRunFn<C> { &self.run_fn }
 }
 
@@ -517,13 +521,14 @@ impl<C: Custom> fmt::Debug for NativeDef<C> {
 }
 
 impl<C: Custom> NativeDef<C> {
-  pub fn new(build_fn: NativeBuildFn<C>, run_fn: NativeRunFn<C>) -> NativeDef<C> {
+  pub fn new(name: &str, build_fn: NativeBuildFn<C>, run_fn: NativeRunFn<C>) -> NativeDef<C> {
     NativeDef {
-      def: NativeFn::new(build_fn, run_fn),
-      inner: Arc::new(Mutex::new(NativeDefInner::new(NativeRunData::new(run_fn))))
+      def: NativeFn::new(name, build_fn, run_fn),
+      inner: Arc::new(Mutex::new(NativeDefInner::new(NativeRunData::new(name, run_fn))))
     }
   }
 
+  pub fn name(&self) -> &str { self.native_fn().name() }
   pub fn native_fn(&self) -> &NativeFn<C> { &self.def }
   pub fn build_fn(&self) -> &NativeBuildFn<C> { self.native_fn().build_fn() }
   pub fn run_fn(&self) -> &NativeRunFn<C> { self.native_fn().run_fn() }
@@ -539,10 +544,11 @@ impl<C: Custom> NativeDef<C> {
 pub type NativeDefInner<C> = CallableDefInner<NativeFn<C>, C>;
 
 impl<C: Custom> fmt::Debug for NativeDefInner<C> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "<native>") }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "<native {}>", self.name()) }
 }
 
 impl<C: Custom> NativeDefInner<C> {
+  pub fn name(&self) -> &str { self.def.name() }
   pub fn run_fn(&self) -> &NativeRunFn<C> { self.def.run_fn() }
   pub fn similar(&self, other: &NativeDefInner<C>) -> bool { self.def == other.def }
 }

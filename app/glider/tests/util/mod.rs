@@ -94,7 +94,7 @@ async fn reflex_build_fn<C: Custom>(
   // TODO(later): this is super clunky, and depends on `define_native` always getting called in the same order
   // on every pass. Figure out a better way.
   let gen_def = pass.define_native(|| {
-    let mut gen_def = NativeDef::new(reflex_ret_build, reflex_ret_run);
+    let mut gen_def = NativeDef::new("reflex", reflex_ret_build, reflex_ret_run);
     gen_def.set_captures(vec![("arg1".into(), args.into_iter().next().unwrap())]);
     gen_def
   });
